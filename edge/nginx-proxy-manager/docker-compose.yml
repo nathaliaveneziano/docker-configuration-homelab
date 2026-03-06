@@ -1,0 +1,98 @@
+# ==========================================
+# 🌐 NGINX PROXY MANAGER
+# ==========================================
+# Reverse Proxy com interface web e Let's Encrypt automático
+# Docs: https://nginxproxymanager.com/
+
+services:
+  nginx-proxy-manager:
+    container_name: ${NPM_CONTAINER:-nginx-proxy-manager}
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+
+    ports:
+      # ⚠️  PORTA 81 - Descomente APENAS para configuração inicial
+      # Após criar usuário admin, comente novamente por segurança
+      # Acesso definitivo deve ser via proxy reverso (ex: npm.seudominio.com → localhost:81)
+      # - "${NPM_PORT:-81}:81"
+      - "80:80"    # HTTP  – Let's Encrypt challenge + redirecionamentos
+      - "443:443"  # HTTPS – tráfego principal
+
+    environment:
+      # SQLite: economia de ~200-300MB vs MariaDB — suficiente para proxy
+      DB_SQLITE_FILE: "/data/database.sqlite"
+
+      # Desabilita IPv6: evita problemas de roteamento no WSL2
+      DISABLE_IPV6: "true"
+
+      # Configurações regionais
+      TZ: ${TIMEZONE:-America/Sao_Paulo}
+
+      # Permissões de arquivo — crítico no WSL2 (use: id -u / id -g)
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+
+      # Nível de log: info = balanceado | debug = verboso
+      LOG_LEVEL: "info"
+
+    volumes:
+      # Dados persistentes: database SQLite, configurações, cache nginx
+      - ./data:/data
+
+      # Certificados SSL separados — facilita migração e backups seletivo
+      - ./data/letsencrypt:/etc/letsencrypt
+
+      # Scripts personalizados (somente leitura)
+      - ./scripts:/scripts:ro
+
+      # Backups locais
+      - ./backups:/backups
+
+    networks:
+      - network
+
+    # ─── Limites de Recursos ───────────────────────────────────────────────
+    # NOTA: deploy.resources é ignorado pelo Docker Compose v2 fora do Swarm.
+    # As diretivas mem_limit / memswap_limit / cpus abaixo são as efetivas.
+    # O bloco deploy.resources é mantido para compatibilidade com Portainer
+    # e futura migração para Swarm.
+    mem_limit: ${NPM_LIMITS_MEMORY:-256M}
+    memswap_limit: ${NPM_LIMITS_MEMORY:-256M}   # Desabilita swap para o container
+    cpus: ${NPM_LIMITS_CPUS:-0.5}
+
+    deploy:
+      resources:
+        limits:
+          # Limite conservador: 256MB (NPM é leve, SQLite economiza muito)
+          memory: ${NPM_LIMITS_MEMORY:-256M}
+          cpus: ${NPM_LIMITS_CPUS:-0.5}
+        reservations:
+          # Mínimo para iniciar sem swap
+          memory: ${NPM_RESERVATIONS_MEMORY:-128M}
+
+    # Aguarda até 15s para conexões ativas finalizarem antes de forçar parada
+    stop_grace_period: 15s
+
+    healthcheck:
+      # Verifica API interna do NPM usando curl (wget não disponível)
+      test: ["CMD", "curl", "-f", "http://localhost:81/api/schema"]
+      interval: ${NPM_INTERVAL:-60}s
+      timeout: ${NPM_TIMEOUT:-10}s
+      retries: ${NPM_RETRIES:-3}
+      start_period: ${NPM_START_PERIOD:-30}s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    labels:
+      - "project=docker-configuration"
+      - "service=nginx-proxy-manager"
+      - "description=Reverse Proxy com Let's Encrypt automático"
+
+networks:
+  network:
+    external: true
+    name: ${NETWORK_NAME}
