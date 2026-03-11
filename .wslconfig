@@ -1,0 +1,73 @@
+# ==========================================================
+# Arquivo : C:\Users\SEU_USUARIO\.wslconfig
+# Aplicar : wsl --shutdown  (no Prompt/PowerShell)
+# Verificar: free -h  (dentro do WSL — esperado: ~4.8Gi)
+#
+# Otimizado para:
+#   Docker + IA + Automação + Media Stack
+#   Notebook com 8 GB RAM / GTX 1650 4 GB VRAM / SSD 256 GB
+# ==========================================================
+
+[wsl2]
+
+# ----------------------------------------------------------
+# Limite máximo de memória disponível para o WSL2
+# 5 GB para o WSL → 3 GB restam para Windows + Chrome/VSCode
+# Não ultrapasse 6 GB ou o Windows ficará instável
+# ----------------------------------------------------------
+memory=5GB
+
+# ----------------------------------------------------------
+# Núcleos lógicos disponíveis para o WSL2
+# 3 de 8 threads mantém o Windows responsivo durante
+# workloads pesados de IA (Ollama, Whisper, SD)
+# ----------------------------------------------------------
+processors=3
+
+# ----------------------------------------------------------
+# Memória virtual (swap) para o WSL2
+# 2 GB é suficiente como buffer para picos pontuais
+# Não aumente além disso: swap excessivo degrada o SSD 256 GB
+# ----------------------------------------------------------
+swap=2GB
+
+# ----------------------------------------------------------
+# Libera RAM ociosa do WSL2 de volta para o Windows
+# Evita "vazamento" gradual de memória entre sessões
+# ----------------------------------------------------------
+pageReporting=true
+
+# ----------------------------------------------------------
+# Encaminha portas do WSL2 para localhost do Windows
+# Permite acessar serviços via http://localhost:<porta>
+# Nota: já habilitado automaticamente com networkingMode=mirrored
+# ----------------------------------------------------------
+localhostForwarding=true
+
+
+# ==========================================================
+# Configurações experimentais
+# Disponível no Windows 11 22H2+ com WSL 2.0+
+# ==========================================================
+
+[experimental]
+
+# ----------------------------------------------------------
+# Recupera memória do WSL gradualmente quando containers
+# são parados — evita que RAM fique "presa" no WSL
+# gradual = mais estável que "dropcache"
+# ----------------------------------------------------------
+autoMemoryReclaim=gradual
+
+# ----------------------------------------------------------
+# Espelha as interfaces de rede do Windows no WSL2
+# Resolve problemas com Docker + VPN + Cloudflare Tunnel
+# Necessário para networkingMode funcionar corretamente
+# ----------------------------------------------------------
+networkingMode=mirrored
+
+# ----------------------------------------------------------
+# Melhora resolução DNS em redes corporativas ou com VPN
+# Útil se containers não resolverem hostnames externos
+# ----------------------------------------------------------
+dnsTunneling=true
